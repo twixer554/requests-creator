@@ -32,5 +32,5 @@ type ArgumentsType<Params, Query, Body, Options> = ObjectHasRequiredKeys<Options
 ], [
     OptionsType<Params, Query, Body, Options>?
 ]>;
-export default function createRequestsCreator<Config extends object = {}, M extends string = Methods>(creator: RequestCreator<Config, M>): <Params extends object = {}, Query extends object = {}, Body_1 extends object = {}, Response_1 = unknown>({ method, url, }: CreateRequestsCreatorOptions<M>) => (...args: ObjectHasKeys<ObjectOnlyRequiredKeys<OptionsType<Params, Query, Body_1, Config>>, [OptionsType<Params, Query, Body_1, Config>], [OptionsType<Params, Query, Body_1, Config>?]>) => Promise<Response_1>;
+export default function createRequestsCreator<Config extends object = {}, M extends string = Methods>(creator: RequestCreator<Config, M>): <Params extends object = {}, Query extends object = {}, Body extends object = {}, Response = unknown>({ method, url, }: CreateRequestsCreatorOptions<M>) => (...args: ArgumentsType<Params, Query, Body, Config>) => Promise<Response>;
 export {};

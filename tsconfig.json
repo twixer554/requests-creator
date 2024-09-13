@@ -1,7 +1,14 @@
 {
   "compilerOptions": {
-    "target": "ES6",
-    "outDir": "./dist",
-    "moduleResolution": "Node"
-  }
+    "target": "ES5",
+    "module": "esnext",
+    "outDir": "build/esm",
+    "declaration": true,
+    "declarationDir": "build/types",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true
+  },
+  "include": ["src"],
+  "exclude": ["node_modules", "build"]
 }
