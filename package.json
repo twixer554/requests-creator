@@ -2,10 +2,8 @@
   "name": "requests-creator",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
+  "main": "dist/index.js",
+  "scripts": {},
   "author": "",
   "license": "ISC",
   "devDependencies": {

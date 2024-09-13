@@ -2,127 +2,98 @@ type Methods = 'get' | 'post' | 'put' | 'patch' | 'delete'
 
 type Url = string
 
+type ObjectHasKeys<T, NotEmpty, Empty> = T extends {
+  [Key in [keyof T] extends [never] ? '' : string]: unknown
+}
+  ? NotEmpty
+  : Empty
+
+type ObjectOnlyRequiredKeys<T> = Pick<
+  T,
+  {
+    [K in keyof T]-?: {} extends { [P in K]: T[K] } ? never : K
+  }[keyof T]
+>
+
+type ObjectHasRequiredKeys<T, HasRequired, HasNotRequired> = ObjectHasKeys<
+  ObjectOnlyRequiredKeys<T>,
+  HasRequired,
+  HasNotRequired
+>
+
+type RequiredOrNotRequiredOptions<Params, Name extends string> = ObjectHasKeys<
+  Params,
+  ObjectHasRequiredKeys<Params, { [Key in Name]: Params }, { [Key in Name]?: Params }>,
+  {}
+>
+
 type CreateRequestsCreatorOptions<M = Methods> = {
   method: M
   url: Url
 }
 
-type CreateFunction = <
+type RequestCreator<Config extends object = {}, M extends string = Methods> = <
   Response = unknown,
-  Query = undefined,
-  Params = undefined,
-  Body = undefined,
-  M = Methods
+  Params = {},
+  Query = {},
+  Body = {}
 >(
-  options: CreateFunctionOptions<Query, Params, Body, M>
+  options: CreateFunctionOptions<Params, Query, Body, Config, M>
 ) => Promise<Response>
 
-type CreateFunctionOptions<
-  Query = undefined,
-  Params = undefined,
-  Body = undefined,
-  M = Methods
-> = {
+type CreateFunctionOptions<Params, Query, Body, Config extends object = {}, M extends string = Methods> = {
   method: M
-  query: Query
   params: Params
+  query: Query
   body: Body
   url: Url
-}
+} & Config
 
-type RequiredOptionsType<Params, Query, Body> = [
-  Params,
-  Query,
-  Body
-][number] extends {}
-  ? undefined
-  : {} & (Params extends undefined ? {} : { params: Params }) &
-      (Query extends undefined ? {} : { query: Query }) &
-      (Body extends undefined ? {} : { body: Body })
+type OptionsType<Params, Query, Body, Options> = RequiredOrNotRequiredOptions<Params, 'params'> &
+  RequiredOrNotRequiredOptions<Query, 'query'> &
+  RequiredOrNotRequiredOptions<Body, 'body'> &
+  Options
 
-type OptionsType<Params, Query, Body, Options> = RequiredOptionsType<
-  Params,
-  Query,
-  Body
-> extends undefined
-  ? [Options]
-  : [RequiredOptionsType<Params, Query, Body> & Options]
+type ArgumentsType<Params, Query, Body, Options> = ObjectHasRequiredKeys<
+  OptionsType<Params, Query, Body, Options>,
+  [OptionsType<Params, Query, Body, Options>],
+  [OptionsType<Params, Query, Body, Options>?]
+>
 
-export default function createRequestsCreator<
-  Options extends object = {},
-  M = Methods
->(create: CreateFunction) {
+export default function createRequestsCreator<Config extends object = {}, M extends string = Methods>(
+  creator: RequestCreator<Config, M>
+) {
   return <
-    Response = unknown,
-    Query = undefined,
-    Params = undefined,
-    Body = undefined
+    Params extends object = {},
+    Query extends object = {},
+    Body extends object = {},
+    Response = unknown
   >({
     method,
     url,
   }: CreateRequestsCreatorOptions<M>) => {
-    return (
-      ...args: OptionsType<Params, Query, Body, Options>
-    ): Promise<Response> => {
-      const options = args[0] || {}
+    return (...args: ArgumentsType<Params, Query, Body, Config>): Promise<Response> => {
+      const options = args[0] || ({} as Config)
       const query = 'query' in options ? options.query : {}
       const params = 'params' in options ? options.params : {}
       const body = 'body' in options ? options.body : {}
 
-      let requestUrl = url.endsWith('/') ? url : `${url}/`
+      let requestUrl = url[url.length - 1] === '/' ? url : `${url}/`
 
       if (typeof params === 'object') {
         for (const key in params) {
-          requestUrl = requestUrl.replace(`/:${key}/`, `/${params[key]}/`)
+          requestUrl = requestUrl.replace(new RegExp(`/:${key}/`, 'g'), `/${params[key]}/`)
         }
       }
 
-      return create({
+      return creator({
+        ...options,
+        url: requestUrl,
         method,
         query,
         body,
         params,
-        url: requestUrl,
       })
     }
   }
 }
-
-const createFetchRequest = createRequestsCreator<{}, 'get'>(
-  ({ body, query, url, method }) => {
-    return (async () => {
-      try {
-        let requestUrl = url
-
-        if (typeof query === 'object') {
-          requestUrl += '?' + new URLSearchParams(query as any).toString()
-        }
-
-        const response = await fetch(requestUrl, {
-          method: (method as string).toUpperCase(),
-          body: body as BodyInit,
-        })
-
-        if (response.ok) {
-          const json = await response.json()
-          return json
-        }
-
-        throw response.json()
-      } catch (error) {
-        throw error
-      }
-    })()
-  }
-)
-
-const f = createFetchRequest<
-  { data: any },
-  { page: number },
-  undefined,
-  { title: string }
->({
-  url: '',
-  method: 'get',
-})
-f({ query: { page: 1 }, body: { title: '1' } }).then((res) => res.data)
